@@ -18,8 +18,6 @@ namespace Business_Logic_Layer.Profiles
             CreateMap<User, UserCreationModel>().ReverseMap();
             CreateMap<User, LoginModel>().ReverseMap();
             CreateMap<UserModel, LoginModel>().ReverseMap();
-            CreateMap<Login, LogingCreationModel>().ReverseMap();
-            CreateMap<Login, LoginModel>().ReverseMap();
             CreateMap<Order, OrderModel>().ReverseMap();
             CreateMap<Order, OrderCreationModel>().ReverseMap();
             CreateMap<OrderItem, OrderItemModel>().ReverseMap();

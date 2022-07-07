@@ -74,6 +74,7 @@ namespace Web_Api
             {
                 app.UseExceptionHandler("/error");
             }
+            app.UseMvc();
 
             app.UseHttpsRedirection();
 
