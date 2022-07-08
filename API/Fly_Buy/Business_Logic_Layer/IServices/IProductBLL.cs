@@ -6,8 +6,9 @@ namespace Business_Logic_Layer
 {
     public interface IProductBLL
     {
-        IEnumerable<ProductModel> GetAllProducts();
-        IEnumerable<ProductModel> GetProductsByCategory(string category);
+        ICollection<ProductModel> GetAllProducts();
+        ProductModel GetSingleProduct(int id);
+        ICollection<ProductModel> GetProductsByCategory(string category);
         ProductModel AddProduct(ProductCreationModel product);
         ProductModel UpdateProduct(ProductCreationModel product);
         int DeleteProduct(int id);

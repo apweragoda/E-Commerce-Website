@@ -8,8 +8,9 @@ namespace Data_Access_Layer.Repository
         Product AddProduct(Product product);
         Product UpdateProduct(Product product);
         int DeleteProduct(int id);
-        IEnumerable<Product> GetAllProducts();
-        IEnumerable<Product> GetProductsByCategory(string category);
+        ICollection<Product> GetAllProducts();
+        Product GetSingleProduct(int id);
+        ICollection<Product> GetProductsByCategory(string category);
         
     }
 }

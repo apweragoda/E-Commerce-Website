@@ -9,30 +9,36 @@ namespace Data_Access_Layer.Repository
 {
     public class ProductRepository : IProductRepository
     {
-        private readonly FlyBuyDbContext _ctx;
+        private readonly FlyBuyDbContext ctx;
 
         public ProductRepository(FlyBuyDbContext ctx)
         {
-            _ctx = ctx;
+            this.ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
         }
 
-        public IEnumerable<Product> GetAllProducts()
+        public ICollection<Product> GetAllProducts()
         {
-            return _ctx.Products
+            return ctx.Products
                 .ToList();
         }
 
-        public IEnumerable<Product> GetProductsByCategory(string category)
+        public ICollection<Product> GetProductsByCategory(string category)
         {
-            return _ctx.Products
+            return ctx.Products
                 .Where(p => p.Category == category)
                 .ToList();
         }
 
+        public Product GetSingleProduct(int id)
+        {
+            var product = ctx.Products.FirstOrDefault(p => p.Id == id);
+            return product;
+        }
+
         public Product AddProduct(Product product)
         {
-            _ctx.Products.Add(product);
-            _ctx.SaveChanges();
+            ctx.Products.Add(product);
+            ctx.SaveChanges();
             return product;
         }
 
@@ -41,19 +47,19 @@ namespace Data_Access_Layer.Repository
             if (product == null)
                 return null;
 
-            _ctx.Products.Update(product);
-            _ctx.SaveChanges();            
+            ctx.Products.Update(product);
+            ctx.SaveChanges();            
 
             return product;
         }
 
         public int DeleteProduct(int id)
         {
-            var product = _ctx.Products
+            var product = ctx.Products
                 .FirstOrDefault(p => p.Id == id);
 
-            _ctx.Products.Remove(product);
-            return _ctx.SaveChanges();
+            ctx.Products.Remove(product);
+            return ctx.SaveChanges();
         }
     }
 }

@@ -12,16 +12,18 @@ using Business_Logic_Layer;
 using Serilog;
 using Business_Logic_Layer.Models;
 using Business_Logic_Layer.Services;
+using Microsoft.AspNetCore.Http;
 
 namespace Web_Api
 {
     public class Startup
     {
-        private readonly IConfiguration _configuration;
+        private readonly IConfiguration configuration;
+        private readonly string defaultPolicy = "default";
 
         public Startup(IConfiguration configuration)
         {
-            _configuration = configuration;
+            this.configuration = configuration;
 
         }
 
@@ -30,12 +32,20 @@ namespace Web_Api
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddCors((setup) =>
+            {
+                setup.AddPolicy(defaultPolicy, (options) =>
+                {
+                    options.WithOrigins("http://localhost:5000", "http://localhost:4200").AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+                });
+            });
 
             services.AddMvc(options => options.EnableEndpointRouting = false);
-            var connectionString = _configuration.GetConnectionString("FlyBuyDb");
+
+            var connectionString = configuration.GetConnectionString("FlyBuyDb");
             services.AddDbContext<FlyBuyDbContext>(opt => opt.UseSqlServer(connectionString));
 
-            var appSettingsSection = _configuration.GetSection("AppSettings");
+            var appSettingsSection = configuration.GetSection("AppSettings");
             services.Configure<AppSettings>(appSettingsSection);
 
             services.AddSingleton<AppSettings>();
@@ -59,6 +69,7 @@ namespace Web_Api
             services.AddScoped<IShippingBLL, ShippingBLL>();
 
             
+            
 
         }
 
@@ -74,6 +85,9 @@ namespace Web_Api
             {
                 app.UseExceptionHandler("/error");
             }
+
+            app.UseCors(defaultPolicy);
+
             app.UseMvc();
 
             app.UseHttpsRedirection();
@@ -86,7 +100,10 @@ namespace Web_Api
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapControllers();
+                endpoints.MapGet("/", async ctx => 
+                {
+                    await ctx.Response.WriteAsync("API Initiated");
+                });
             });
         }
     }
