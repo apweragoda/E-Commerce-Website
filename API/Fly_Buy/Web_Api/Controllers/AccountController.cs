@@ -2,6 +2,8 @@
 using Business_Logic_Layer.Models;
 using Business_Logic_Layer.Services;
 using Data_Access_Layer.Repository.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -28,66 +30,25 @@ namespace Web_Api.Controllers
         }
 
 
-
-        /*
-         * 
-         * public ActionResult Login()
-        {
-            if (this.User.Identity.IsAuthenticated)
-            {
-                logger.LogWarning("User authenticated");
-                return RedirectToAction("GetAllProducts", "Product");
-            }
-            logger.LogWarning("User need to log in");
-            return BadRequest("User need to log in");
-        }
-         * 
-         * 
-         * 
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<ActionResult> Login([FromBody] LogingCreationModel loging)
+        [Route("login")]
+
+        public IActionResult Login(LoginModel login)
         {
-            //_userBLL.LoginUserWithEmail(loging);
-            if (ModelState.IsValid)
+            logger.LogInformation("Trying to login");
+            var customer = userBLL.Login(login);
+
+            if (customer == null)
             {
-                Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.PasswordSignInAsync(loging.UserName,
-                    loging.PasswordHash,
-                    loging.RememberMe,
-                    false);
-                if (result.Succeeded)
-                {
-                    if (Request.Query.Keys.Contains("ReturnUrl"))
-                    {
-                        logger.LogWarning("User not logged in");
-                        return Redirect(Request.Query["ReturnUrl"].First());
-                    }
-                    else
-                    {
-                        logger.LogWarning("User logged in");
-                        return RedirectToAction("GetAllOrders", "Order");
-                    }
-                }
+                logger.LogError("Invalid username or password");
+                return Unauthorized("Incorrect inputs !");
             }
-            ModelState.AddModelError("", "Falied to login");
-            logger.LogWarning("Failed to login user");
-            return BadRequest($"Failed to login user");
-        /*
-            /*
-            try
-            {
-                if (this.User.Identity.IsAuthenticated)
-                {
-                    _logger.LogWarning("User authenticated");
-                    return Ok();
-                }
-                _userBLL.LoginUserWithEmail(loging);
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Failed to login user - {ex} ");
-            }
-            */
+
+
+            logger.LogInformation("user logged in $ returned user details");
+            return Ok(customer);
+        }
 
 
         [HttpGet]
@@ -112,20 +73,25 @@ namespace Web_Api.Controllers
             return userBLL.GetUser(id);
         }
 
+        [AllowAnonymous]
         [HttpPost]
-        [Route("addUser")]
+        [Route("signup")]
         public ActionResult AddUser([FromBody] UserCreationModel userModel)
         {
-            try
+            logger.LogWarning("New user registration requested");
+            var newUser = userBLL.AddUser(userModel);
+
+            if (newUser == null)
             {
-                userBLL.AddUser(userModel);
-                logger.LogWarning("User added");
-                return Ok();
+                logger.LogError("Email already in use");
+                return BadRequest(new { message = "Email address already in use" });
             }
-            catch (Exception ex)
-            {
-                return BadRequest($"Failed to add user - {ex} ");
-            }
+
+            SetRefreshTokenInCookie(newUser.RefreshToken);
+
+            logger.LogWarning("New customer registered");
+
+            return Ok(new { message = "Registered Successfully !", user = newUser });
         }
 
         [HttpPut]
@@ -158,6 +124,31 @@ namespace Web_Api.Controllers
             }
         }
 
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("refreshToken")]
+        public ActionResult RefreshJWTtoken()
+        {
+            var refreshToken = Request.Cookies["refreshToken"];
+            var userModel = userBLL.RefreshExpiredJWTtoken(refreshToken);
+            if (!string.IsNullOrEmpty(userModel.RefreshToken))
+            {
+                SetRefreshTokenInCookie(userModel.RefreshToken);
+            }
+            return Ok(userModel);
+        }
+
+        private void SetRefreshTokenInCookie(string refreshToken)
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Expires = DateTime.UtcNow.AddDays(10),
+                SameSite = SameSiteMode.None,
+                Secure = true
+            };
+            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+        }
 
         [HttpGet]
             public string SayHello()

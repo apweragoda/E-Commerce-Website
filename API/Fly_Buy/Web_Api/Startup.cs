@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -13,6 +12,10 @@ using Serilog;
 using Business_Logic_Layer.Models;
 using Business_Logic_Layer.Services;
 using Microsoft.AspNetCore.Http;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System;
 
 namespace Web_Api
 {
@@ -47,6 +50,27 @@ namespace Web_Api
 
             var appSettingsSection = configuration.GetSection("AppSettings");
             services.Configure<AppSettings>(appSettingsSection);
+
+            // JWT
+            var appSettings = appSettingsSection.Get<AppSettings>();
+            var jwtKey = Encoding.ASCII.GetBytes(appSettings.JWTkey);
+            services.AddAuthentication(auth =>
+            {
+                auth.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                auth.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            }).AddJwtBearer(jwt => {
+                jwt.RequireHttpsMetadata = false;
+                jwt.SaveToken = true;
+                jwt.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(jwtKey),
+                    ValidateIssuer = false,
+                    ValidateLifetime = true,
+                    ValidateAudience = false,
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
 
             services.AddSingleton<AppSettings>();
             services.AddTransient<IMailService, NullMailService>();
@@ -89,6 +113,8 @@ namespace Web_Api
             app.UseCors(defaultPolicy);
 
             app.UseMvc();
+
+            app.UseAuthentication();
 
             app.UseHttpsRedirection();
 

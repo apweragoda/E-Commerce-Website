@@ -1,33 +1,63 @@
-﻿using Business_Logic_Layer.Models;
-using Data_Access_Layer;
-using System;
+﻿using System;
 using AutoMapper;
 using System.Collections.Generic;
-using Data_Access_Layer.Repository.Entities;
 using System.Linq;
-using Data_Access_Layer.Repository;
 using Microsoft.Extensions.Logging;
+using Data_Access_Layer.Repository;
+using Business_Logic_Layer.Models;
+using Data_Access_Layer.Repository.Entities;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using Data_Access_Layer.Entities;
+using System.Security.Cryptography;
+using Microsoft.Extensions.Options;
 
 namespace Business_Logic_Layer
 {
     public class UserBLL : IUserBLL
     {
+        private readonly AppSettings appSettings;
         private readonly IUserRepository userRepository;
         private readonly IMapper userMapper;
         private readonly ILogger logger;
 
-        //private readonly UserDAL _userRepository;
 
         public UserBLL()
         {
 
         }
-        public UserBLL(IUserRepository DAL, IMapper mapper, ILogger<UserBLL> logger)
+        public UserBLL(IOptions<AppSettings> appSettings, IUserRepository DAL, IMapper mapper, ILogger<UserBLL> logger)
         {
+            this.appSettings = appSettings.Value ?? throw new ArgumentNullException(nameof(appSettings));
             this.userRepository = DAL;
             this.userMapper = mapper;
             this.logger = logger;
         }
+
+        public UserModel Login(LoginModel loginModel)
+        {
+            var customer = userRepository.GetUserWithEmail(loginModel.Email);
+
+            if (customer == null)
+            {
+                return null;
+            }
+
+            bool isValidPassword = BCrypt.Net.BCrypt.Verify(loginModel.Password, customer.Password);
+
+            if (!isValidPassword)
+            {
+                return null;
+            }
+            var result = userMapper.Map<UserModel>(customer);
+
+            UserModel userModel = GenerateUserWithRefreshToken(result);
+
+            return userModel;
+        }
+
         public ICollection<UserModel> GetAllUsers()
         {
             var user = userRepository.GetAllUsers();
@@ -40,18 +70,33 @@ namespace Business_Logic_Layer
         {
             var user = userRepository.GetUser(id);
             var result = userMapper.Map<UserModel>(user);
-            logger.LogWarning("User: " + user.FirstName + " searched");
+            logger.LogWarning("User: " + user.Username + " searched");
             return result;
         }
 
-        public UserModel AddUser(UserCreationModel user)
+        public UserModel AddUser(UserCreationModel userCreationModel)
         {
-            user.Id = Guid.NewGuid();
-            var userEntity = userMapper.Map<User>(user);
+            var userExist = userRepository.GetUserWithEmail(userCreationModel.Email);
+            if (userExist != null)
+            {
+                return null;
+            }
+            userCreationModel.Id = Guid.NewGuid();
+
+            var userEntity = new User()
+            {
+                Username = userCreationModel.Username,
+                Email = userCreationModel.Email,
+                Password = BCrypt.Net.BCrypt.HashPassword(userCreationModel.Password)
+            };
+
             var changes = userRepository.AddUser(userEntity);
-            var userModel = userMapper.Map<UserModel>(changes);
-            logger.LogWarning("User: " + user.FirstName + " added");
-            return userModel;
+
+            var result = userMapper.Map<UserModel>(changes);
+
+            var newCustomerDto = GenerateUserWithRefreshToken(result); 
+            logger.LogWarning("User: " + userEntity.Username + " added");
+            return newCustomerDto;
         }
 
         public UserModel UpdateUser(Guid id,UserCreationModel user)
@@ -59,14 +104,13 @@ namespace Business_Logic_Layer
             var existingUser = userRepository.GetUser(id);
             if(existingUser != null)
             {
-                existingUser.FirstName = user.FirstName;
-                existingUser.LastName = user.LastName;
+                existingUser.Username = user.Username;
                 existingUser.Email = user.Email;
                 existingUser.Password = user.Password;
                 var userEntity = userMapper.Map<User>(existingUser);
                 var changes = userRepository.UpdateUser(userEntity);
                 var userModel = userMapper.Map<UserModel>(changes);
-                logger.LogWarning("User: " + user.FirstName + " updated");
+                logger.LogWarning("User: " + user.Username + " updated");
                 return userModel;
             }
             logger.LogWarning("User not found");
@@ -81,20 +125,112 @@ namespace Business_Logic_Layer
             return changes;
         }
 
-        /*
-        public LoginModel LoginUserWithEmail(LogingCreationModel loging)
+        public UserModel GetUserWithEmail(string email)
         {
-            _logger.LogWarning("User trying to login");
-            var verified = _userRepository.LoginUserWithEmail(loging.Email, loging.Password);
+            logger.LogWarning("Get user by email");
+            var verified = userRepository.GetUserWithEmail(email);
             if(verified == null)
             {
-                _logger.LogError("Invalid credentials");
+                logger.LogError("Invalid input");
                 return null;
             }
-            var userModel = _userMapper.Map<LoginModel>(verified);
-            _logger.LogWarning("User logged in - " + userModel.UserName);
+            var userModel = userMapper.Map<UserModel>(verified);
+            logger.LogWarning("User logged in - " + userModel);
             return userModel;
         }
-       */
+        public UserModel GenerateUserWithRefreshToken(UserModel user)
+        {
+            var userModel = new UserModel();
+
+            userModel.Id = user.Id;
+            userModel.IsAuthenticated = true;
+            userModel.Token = GenerateToken(user);
+            userModel.Email = user.Email;
+            userModel.UserName = user.UserName;
+
+            var refreshToken = CreateRefreshToken();
+            userModel.RefreshToken = refreshToken.Token;
+            userModel.RefreshTokenExpiration = refreshToken.Expires;
+            var model = userMapper.Map<User>(userModel);
+            userRepository.AddRefreshToken(model, refreshToken);
+
+            return userModel;
+        }
+
+        public RefreshToken CreateRefreshToken()
+        {
+            var randomNumber = new byte[32];
+            using (var generator = new RNGCryptoServiceProvider())
+            {
+                generator.GetBytes(randomNumber);
+                return new RefreshToken
+                {
+                    Token = Convert.ToBase64String(randomNumber),
+                    Expires = DateTime.UtcNow.AddDays(10),
+                    Created = DateTime.UtcNow
+                };
+            }
+        }
+
+
+        public string GenerateToken(UserModel userModel)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+
+            //var key = Encoding.ASCII.GetBytes(appSettings.JWTkey);
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new System.Security.Claims.ClaimsIdentity(new Claim[]
+                {
+                    new Claim(ClaimTypes.Name, userModel.Id.ToString()),
+                }),
+                Expires = DateTime.UtcNow.AddMinutes(1),
+            };
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
+
+        public UserModel RefreshExpiredJWTtoken(string refreshTokenToRenew)
+        {
+            var userModel = new UserModel();
+
+            // get user that have the refresh token
+            var user = userRepository.GetUserByRefreshToken(refreshTokenToRenew);
+
+            if (user == null)
+            {
+                userModel.IsAuthenticated = false;
+                userModel.Message = "No user with the token found";
+                return userModel;
+            }
+
+            // get the refreshtoken details 
+            var refreshToken = user.RefreshTokens.Single(r => r.Token == refreshTokenToRenew);
+
+            // if refresh token is not active (revoked && expired)
+            if (!refreshToken.IsActive)
+            {
+                userModel.IsAuthenticated = false;
+                userModel.Message = "Token is not active";
+                return userModel;
+            }
+
+            // revoking the current refresh token
+            refreshToken.Revoked = DateTime.Now;
+
+            // creating new refresh token
+            var newRefreshToken = CreateRefreshToken();
+            userRepository.AddRefreshToken(user, newRefreshToken);
+            var model = userMapper.Map<UserModel>(user);
+            userModel.IsAuthenticated = true;
+            userModel.Token = GenerateToken(model);
+            userModel.Email = user.Email;
+            userModel.Id = user.Id;
+            userModel.UserName = user.Username;
+            userModel.RefreshToken = newRefreshToken.Token;
+            userModel.RefreshTokenExpiration = refreshToken.Expires;
+            return userModel;
+        }
     }
 }

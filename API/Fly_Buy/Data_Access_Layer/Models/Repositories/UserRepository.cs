@@ -1,4 +1,5 @@
-﻿using Data_Access_Layer.Repository.Entities;
+﻿using Data_Access_Layer.Entities;
+using Data_Access_Layer.Repository.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,27 +55,33 @@ namespace Data_Access_Layer.Repository
             if(user != null)
             {
                 ctx.Users.Remove(user);
-                Console.WriteLine("User deleted - ", user.FirstName);
+                Console.WriteLine("User deleted - ", user.Email);
                 return ctx.SaveChanges();
             }
             return 0 ;
         }
 
 
-        public User LoginUserWithEmail(string email, string password)
+        public User GetUserWithEmail(string email)
+        {            
+            return ctx.Users.FirstOrDefault(u => u.Email == email);
+        }
+
+
+        public void AddRefreshToken(User user, RefreshToken refreshToken)
         {
-            var user = ctx.Users.FirstOrDefault(u => u.Email == email);
-            if (user == null)
+            if (user != null)
             {
-                Console.WriteLine("User not exist");
-                return null;
+                Console.WriteLine("Error occured");
             }
-            if(user.Password != password)
-            {
-                Console.WriteLine("Password does not match");
-                return null;
-            }
-            return user;
+            user.RefreshTokens.Add(refreshToken);
+            ctx.Update(user);
+            ctx.SaveChanges();
+        }
+
+        public User GetUserByRefreshToken(string refreshToken)
+        {
+            return ctx.Users.SingleOrDefault(c => c.RefreshTokens.Any(t => t.Token == refreshToken));
         }
 
     }

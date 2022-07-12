@@ -8,16 +8,17 @@ namespace Business_Logic_Layer.Models
 {
     public class UserCreationModel 
     {
-        [Key]
+        [Required] 
         public Guid Id { get; set; }
         [Required]
-        public string FirstName { get; set; }
-        [Required]
-        public string LastName { get; set; }
+        public string Username { get; set; }
         [Required]
         [EmailAddress]
         public string Email { get; set; }
         [Required]
+        [DataType(DataType.Password)]
+        [RegularExpression(@"^((?=.*[a-z])(?=.*[A-Z])(?=.*\d)).+$", ErrorMessage = "Password should contain atleast one Block letter and number")]
+        [MinLength(8)]
         public string Password { get; set; }
     }
 }

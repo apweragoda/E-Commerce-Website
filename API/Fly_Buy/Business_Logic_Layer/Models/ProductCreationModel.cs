@@ -18,6 +18,6 @@ namespace Business_Logic_Layer.Models
         [Required]
         public decimal Price { get; set; }
         [Required]
-        public string Description { get; set; }
+        public int Ratings { get; set; }
     }
 }
