@@ -2,6 +2,8 @@
 using Business_Logic_Layer;
 using Business_Logic_Layer.Models;
 using Data_Access_Layer.Repository.Entities;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -64,6 +66,7 @@ namespace Web_Api.Controllers
         }
 
         // POST api/<ProductController>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         [HttpPost]
         public ActionResult AddProduct([FromBody] ProductCreationModel productModel)
         {

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Data_Access_Layer.Migrations
 {
-    public partial class test : Migration
+    public partial class UserModelModified : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -33,7 +33,7 @@ namespace Data_Access_Layer.Migrations
                     Category = table.Column<string>(nullable: true),
                     Image = table.Column<string>(nullable: true),
                     Price = table.Column<decimal>(nullable: false),
-                    Description = table.Column<string>(nullable: true)
+                    Ratings = table.Column<int>(nullable: false)
                 },
                 constraints: table =>
                 {
@@ -59,15 +59,14 @@ namespace Data_Access_Layer.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(nullable: false),
-                    FirstName = table.Column<string>(nullable: true),
-                    LastName = table.Column<string>(nullable: true),
+                    UserId = table.Column<Guid>(nullable: false),
+                    UserName = table.Column<string>(nullable: true),
                     Email = table.Column<string>(nullable: true),
                     Password = table.Column<string>(nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Users", x => x.Id);
+                    table.PrimaryKey("PK_Users", x => x.UserId);
                 });
 
             migrationBuilder.CreateTable(
@@ -79,7 +78,8 @@ namespace Data_Access_Layer.Migrations
                     CustomerId = table.Column<Guid>(nullable: false),
                     OrderDate = table.Column<DateTime>(nullable: false),
                     ShippingId = table.Column<int>(nullable: true),
-                    BillId = table.Column<int>(nullable: true)
+                    BillId = table.Column<int>(nullable: true),
+                    UserId = table.Column<Guid>(nullable: true)
                 },
                 constraints: table =>
                 {
@@ -96,6 +96,35 @@ namespace Data_Access_Layer.Migrations
                         principalTable: "ShippingInfo",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Orders_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RefreshTokens",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(nullable: false),
+                    Id = table.Column<int>(nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Token = table.Column<string>(nullable: true),
+                    Expires = table.Column<DateTime>(nullable: false),
+                    Created = table.Column<DateTime>(nullable: false),
+                    Revoked = table.Column<DateTime>(nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefreshTokens", x => new { x.UserId, x.Id });
+                    table.ForeignKey(
+                        name: "FK_RefreshTokens_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -145,6 +174,11 @@ namespace Data_Access_Layer.Migrations
                 name: "IX_Orders_ShippingId",
                 table: "Orders",
                 column: "ShippingId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Orders_UserId",
+                table: "Orders",
+                column: "UserId");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
@@ -153,7 +187,7 @@ namespace Data_Access_Layer.Migrations
                 name: "OrderItem");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "RefreshTokens");
 
             migrationBuilder.DropTable(
                 name: "Orders");
@@ -166,6 +200,9 @@ namespace Data_Access_Layer.Migrations
 
             migrationBuilder.DropTable(
                 name: "ShippingInfo");
+
+            migrationBuilder.DropTable(
+                name: "Users");
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using Data_Access_Layer.Entities;
 using Data_Access_Layer.Repository.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -28,6 +29,7 @@ namespace Data_Access_Layer
         public  DbSet<Order> Orders { get; set; }
         public  DbSet<Bill> Bills { get; set; }
         public  DbSet<Shipping> ShippingInfo { get; set; }
+        public  DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {

@@ -22,7 +22,12 @@ namespace Data_Access_Layer.Repository
         public User GetUser(Guid id)
         {
             return ctx.Users
-                .FirstOrDefault(o => o.Id == id);
+                .FirstOrDefault(o => o.UserId == id);
+        }
+
+        public User GetUserWithEmail(string email)
+        {
+            return ctx.Users.FirstOrDefault(u => u.Email == email);
         }
 
         public User AddUser(User user)
@@ -51,7 +56,7 @@ namespace Data_Access_Layer.Repository
         public int DeleteUser(Guid id)
         {
             var user = ctx.Users
-                        .FirstOrDefault(u => u.Id == id);
+                        .FirstOrDefault(u => u.UserId == id);
             if(user != null)
             {
                 ctx.Users.Remove(user);
@@ -62,10 +67,7 @@ namespace Data_Access_Layer.Repository
         }
 
 
-        public User GetUserWithEmail(string email)
-        {            
-            return ctx.Users.FirstOrDefault(u => u.Email == email);
-        }
+        
 
 
         public void AddRefreshToken(User user, RefreshToken refreshToken)
@@ -81,7 +83,7 @@ namespace Data_Access_Layer.Repository
 
         public User GetUserByRefreshToken(string refreshToken)
         {
-            return ctx.Users.SingleOrDefault(c => c.RefreshTokens.Any(t => t.Token == refreshToken));
+            return ctx.Users.SingleOrDefault(u => u.RefreshTokens.Any(t => t.Token == refreshToken));
         }
 
     }

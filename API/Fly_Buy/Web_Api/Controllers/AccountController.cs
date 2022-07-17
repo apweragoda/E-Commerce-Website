@@ -2,6 +2,7 @@
 using Business_Logic_Layer.Models;
 using Business_Logic_Layer.Services;
 using Data_Access_Layer.Repository.Entities;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -14,6 +15,7 @@ using System.Threading.Tasks;
 
 namespace Web_Api.Controllers
 {
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [ApiController]
     [Route("api/[controller]")]
     public class AccountController : ControllerBase
@@ -44,9 +46,10 @@ namespace Web_Api.Controllers
                 logger.LogError("Invalid username or password");
                 return Unauthorized("Incorrect inputs !");
             }
+            
+            SetRefreshTokenInCookie(customer.RefreshToken);
 
-
-            logger.LogInformation("user logged in $ returned user details");
+            logger.LogInformation($"{customer.UserName} logged in - {customer}");
             return Ok(customer);
         }
 
